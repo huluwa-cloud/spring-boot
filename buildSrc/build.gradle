@@ -5,6 +5,7 @@ plugins {
 }
 
 repositories {
+	maven { url "https://maven.aliyun.com/repository/public" }
 	mavenCentral()
 	gradlePluginPortal()
 	maven { url "https://repo.spring.io/release" }
@@ -94,6 +95,6 @@ gradlePlugin {
 	}
 }
 
-test {
-	useJUnitPlatform()
-}
+//test {
+//	useJUnitPlatform()
+//}
