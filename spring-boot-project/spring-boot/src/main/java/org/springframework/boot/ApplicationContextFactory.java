@@ -25,7 +25,12 @@ import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 
 /**
- * Strategy interface for creating the {@link ConfigurableApplicationContext} used by a
+ *
+ * 这里用了策略模式，不是我说的，是官方文档注释说的。
+ * 而且说明了用来产生ConfigurableApplicationContext来给SpringApplication用。
+ * 也就是这个接口是为了Spring Boot和 ApplicationContextFactory而建的。
+ *
+ * Strategy interface(策略接口) for creating the {@link ConfigurableApplicationContext} used by a
  * {@link SpringApplication}. Created contexts should be returned in their default form,
  * with the {@code SpringApplication} responsible for configuring and refreshing the
  * context.
@@ -38,6 +43,9 @@ import org.springframework.context.annotation.AnnotationConfigApplicationContext
 public interface ApplicationContextFactory {
 
 	/**
+	 * 直接在一个接口里面去给一个接口的变量赋值，赋值的逻辑就写在这个接口里。
+	 * 是的，写代码可以有各种骚写法，不需要限制自己。
+	 *
 	 * A default {@link ApplicationContextFactory} implementation that will create an
 	 * appropriate context for the {@link WebApplicationType}.
 	 */
@@ -59,6 +67,9 @@ public interface ApplicationContextFactory {
 	};
 
 	/**
+	 *
+	 * ApplicationContextFactory接口的唯一方法
+	 *
 	 * Creates the {@link ConfigurableApplicationContext application context} for a
 	 * {@link SpringApplication}, respecting the given {@code webApplicationType}.
 	 * @param webApplicationType the web application type
