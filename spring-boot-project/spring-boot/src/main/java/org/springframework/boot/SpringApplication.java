@@ -85,6 +85,13 @@ import org.springframework.util.StringUtils;
  * method. By default class will perform the following steps to bootstrap your
  * application:
  *
+ * <p>
+ * SpringApplication这个类，执行以下步骤，来启动应用。
+ * 1) 创建对应的ApplicationContext
+ * 2)
+ * 3)
+ * 4) 触发所有的实现了CommandLineRunner的bean执行指定的run方法
+ *
  * <ul>
  * <li>Create an appropriate {@link ApplicationContext} instance (depending on your
  * classpath)</li>
@@ -113,6 +120,9 @@ import org.springframework.util.StringUtils;
  * <p>
  * For more advanced configuration a {@link SpringApplication} instance can be created and
  * customized before being run:
+ * <p>
+ *  可以不通过静态方法调用的方式来启动。
+ *  可以创建一个SpringApplication实例，然后做一些自定义的配置，然后运行实例的run方法。
  *
  * <pre class="code">
  * public static void main(String[] args) {
@@ -255,14 +265,44 @@ public class SpringApplication {
 		this.resourceLoader = resourceLoader;
 		Assert.notNull(primarySources, "PrimarySources must not be null");
 		this.primarySources = new LinkedHashSet<>(Arrays.asList(primarySources));
+		// 根据存在的class，推断出application的类型
+		// application的类型就只有WebApplicationType这个枚举类枚举的3种
 		this.webApplicationType = WebApplicationType.deduceFromClasspath();
 		this.bootstrapRegistryInitializers = new ArrayList<>(
-				getSpringFactoriesInstances(BootstrapRegistryInitializer.class));
-		setInitializers((Collection) getSpringFactoriesInstances(ApplicationContextInitializer.class));
-		setListeners((Collection) getSpringFactoriesInstances(ApplicationListener.class));
+				getSpringFactoriesInstances(BootstrapRegistryInitializer.class));	// BootstrapRegistryInitializer在spring.factories文件中没有
+		setInitializers((Collection) getSpringFactoriesInstances(ApplicationContextInitializer.class)); // ApplicationContextInitializer如下
+		setListeners((Collection) getSpringFactoriesInstances(ApplicationListener.class)); // ApplicationListener如下
+
+		// 根据main方法所在的类，推断出主类。
 		this.mainApplicationClass = deduceMainApplicationClass();
 	}
 
+//	# Application Context Initializers
+//	org.springframework.context.ApplicationContextInitializer=\
+//	org.springframework.boot.context.ConfigurationWarningsApplicationContextInitializer,\
+//	org.springframework.boot.context.ContextIdApplicationContextInitializer,\
+//	org.springframework.boot.context.config.DelegatingApplicationContextInitializer,\
+//	org.springframework.boot.rsocket.context.RSocketPortInfoApplicationContextInitializer,\
+//	org.springframework.boot.web.context.ServerPortInfoApplicationContextInitializer
+//
+//# Application Listeners
+//	org.springframework.context.ApplicationListener=\
+//	org.springframework.boot.ClearCachesApplicationListener,\
+//	org.springframework.boot.builder.ParentContextCloserApplicationListener,\
+//	org.springframework.boot.context.FileEncodingApplicationListener,\
+//	org.springframework.boot.context.config.AnsiOutputApplicationListener,\
+//	org.springframework.boot.context.config.DelegatingApplicationListener,\
+//	org.springframework.boot.context.logging.LoggingApplicationListener,\
+//	org.springframework.boot.env.EnvironmentPostProcessorApplicationListener
+
+	/**
+	 * spring boot推断应用的启动主类的操作，极骚！
+	 *
+	 * 是new一个RuntimeException，通过其获取到执行追踪栈。
+	 * 然后遍历栈的元素，判断方法名为main的，就判定执行这个main方法的类为启动主类。
+	 *
+	 * @return 应用启动主类的Class类型
+	 */
 	private Class<?> deduceMainApplicationClass() {
 		try {
 			StackTraceElement[] stackTrace = new RuntimeException().getStackTrace();
@@ -286,16 +326,24 @@ public class SpringApplication {
 	 */
 	public ConfigurableApplicationContext run(String... args) {
 		long startTime = System.nanoTime();
-		DefaultBootstrapContext bootstrapContext = createBootstrapContext();
-		ConfigurableApplicationContext context = null;
-		configureHeadlessProperty();
+		DefaultBootstrapContext bootstrapContext = createBootstrapContext();	// 这一步啥都没做
+		ConfigurableApplicationContext context = null;	// 这才是核心所在，这个项目要的就是这个context
+		configureHeadlessProperty();	// 这个配置暂时无关紧要，没啥用
+		// 用Spring Factory的加载机制，捞出配置在spring.factories文件中，实现了SpringApplicationRunListener接口的所有具体类
+		// 并创建了实例。SpringApplicationRunListeners，代表了这些listener实例的集合。
 		SpringApplicationRunListeners listeners = getRunListeners(args);
-		listeners.starting(bootstrapContext, this.mainApplicationClass);
+		// 这里让所有的SpringApplicationRunListener具体实例，都执行他们的starting方法
+		listeners.starting(bootstrapContext, this.mainApplicationClass); // starting ========================================
 		try {
+			// 先通过命令行的参数，提取出Application参数对象
 			ApplicationArguments applicationArguments = new DefaultApplicationArguments(args);
 			ConfigurableEnvironment environment = prepareEnvironment(listeners, bootstrapContext, applicationArguments);
-			configureIgnoreBeanInfo(environment);
-			Banner printedBanner = printBanner(environment);
+			configureIgnoreBeanInfo(environment); // 也没啥用
+			Banner printedBanner = printBanner(environment); // 这里打印Banner，没啥好说的
+			// 在这里创建ApplicationContext！！！
+			// 根据this.webApplicationType，创建对用的ApplicationContext
+			// 这里仅仅是建了一个ApplicationContext，它可以是一个空壳子，啥也没有。
+			// 只有一个BeanFactory实例在里面，但是BeanFactory里面一个Bean都没有也是可以的。
 			context = createApplicationContext();
 			context.setApplicationStartup(this.applicationStartup);
 			prepareContext(bootstrapContext, context, environment, listeners, applicationArguments, printedBanner);
@@ -305,7 +353,8 @@ public class SpringApplication {
 			if (this.logStartupInfo) {
 				new StartupInfoLogger(this.mainApplicationClass).logStarted(getApplicationLog(), timeTakenToStartup);
 			}
-			listeners.started(context, timeTakenToStartup);
+			listeners.started(context, timeTakenToStartup);	// started ========================================
+			//
 			callRunners(context, applicationArguments);
 		}
 		catch (Throwable ex) {
@@ -314,7 +363,7 @@ public class SpringApplication {
 		}
 		try {
 			Duration timeTakenToReady = Duration.ofNanos(System.nanoTime() - startTime);
-			listeners.ready(context, timeTakenToReady);
+			listeners.ready(context, timeTakenToReady); // ready ========================================
 		}
 		catch (Throwable ex) {
 			handleRunFailure(context, ex, null);
@@ -335,7 +384,7 @@ public class SpringApplication {
 		ConfigurableEnvironment environment = getOrCreateEnvironment();
 		configureEnvironment(environment, applicationArguments.getSourceArgs());
 		ConfigurationPropertySources.attach(environment);
-		listeners.environmentPrepared(bootstrapContext, environment);
+		listeners.environmentPrepared(bootstrapContext, environment);	// environment-prepared ========================================
 		DefaultPropertiesPropertySource.moveToEnd(environment);
 		Assert.state(!environment.containsProperty("spring.main.environment-prefix"),
 				"Environment prefix cannot be set via properties.");
@@ -376,11 +425,11 @@ public class SpringApplication {
 		context.setEnvironment(environment);
 		postProcessApplicationContext(context);
 		applyInitializers(context);
-		listeners.contextPrepared(context);
+		listeners.contextPrepared(context);	// context-prepared ====================================
 		bootstrapContext.close(context);
 		if (this.logStartupInfo) {
 			logStartupInfo(context.getParent() == null);
-			logStartupProfileInfo(context);
+			logStartupProfileInfo(context); // 打印profile的信息
 		}
 		// Add boot specific singleton beans
 		ConfigurableListableBeanFactory beanFactory = context.getBeanFactory();
@@ -389,6 +438,7 @@ public class SpringApplication {
 			beanFactory.registerSingleton("springBootBanner", printedBanner);
 		}
 		if (beanFactory instanceof AbstractAutowireCapableBeanFactory) {
+			// 设置是否允许循环引用
 			((AbstractAutowireCapableBeanFactory) beanFactory).setAllowCircularReferences(this.allowCircularReferences);
 			if (beanFactory instanceof DefaultListableBeanFactory) {
 				((DefaultListableBeanFactory) beanFactory)
@@ -399,10 +449,13 @@ public class SpringApplication {
 			context.addBeanFactoryPostProcessor(new LazyInitializationBeanFactoryPostProcessor());
 		}
 		// Load the sources
+		// 这里的获取Source的含义是什么呢？
+		// 就是先把要让spring先行认识的代码（源码）标识提取出来。
+		// 它可以仅仅是一个类就行了。因为这个类可以，在配置指定，或者配置scan出更过的要让spring去识别的Source
 		Set<Object> sources = getAllSources();
 		Assert.notEmpty(sources, "Sources must not be empty");
 		load(context, sources.toArray(new Object[0]));
-		listeners.contextLoaded(context);
+		listeners.contextLoaded(context); // context-loaded==============================
 	}
 
 	private void refreshContext(ConfigurableApplicationContext context) {
@@ -419,7 +472,21 @@ public class SpringApplication {
 
 	private SpringApplicationRunListeners getRunListeners(String[] args) {
 		Class<?>[] types = new Class<?>[] { SpringApplication.class, String[].class };
+		// 啥都没做，其实就是直接new了一个SpringApplicationRunListeners实例
+		// 而SpringApplicationRunListeners就是spring boot自己定义的一堆listener的集合
 		return new SpringApplicationRunListeners(logger,
+				/*
+				 * !!!!!
+				 * 注意这一步
+				 *
+				 * 这一步，通过Springd的factory加载机制把所有SpringApplicationListener的具体子类挖出来，并实例化
+				 *
+				 * # Run Listeners
+				 * org.springframework.boot.SpringApplicationRunListener=\
+				 * org.springframework.boot.context.event.EventPublishingRunListener
+				 * 找遍了spring.factories文件，SpringApplicationRunListener接口实现类，就只有一个EventPublishingRunListener
+				 *
+				 */
 				getSpringFactoriesInstances(SpringApplicationRunListener.class, types, this, args),
 				this.applicationStartup);
 	}
@@ -579,6 +646,9 @@ public class SpringApplication {
 	 */
 	protected void postProcessApplicationContext(ConfigurableApplicationContext context) {
 		if (this.beanNameGenerator != null) {
+
+			// 这里用了ApplicationContext的核心接口方法之一getBeanFactory()，拿出这个ApplicationContext所持有的BeanFactory。
+			// 这个BeanFactory不用问，都知道是DefaultListableBeanFactory的实例。
 			context.getBeanFactory().registerSingleton(AnnotationConfigUtils.CONFIGURATION_BEAN_NAME_GENERATOR,
 					this.beanNameGenerator);
 		}
@@ -654,6 +724,9 @@ public class SpringApplication {
 	}
 
 	/**
+	 * ！！！！！！！！！！来了，来了
+	 * 把所有的Bean加载到ApplicationContext，就是在这里了
+	 *
 	 * Load beans into the application context.
 	 * @param context the context to load beans into
 	 * @param sources the sources to load
@@ -1280,6 +1353,11 @@ public class SpringApplication {
 	}
 
 	/**
+	 * spring boot 应用的启动入口. run方法
+	 *
+	 * 这里的文档注释表明了，SpringApplication这个类的作用。
+	 * 就是一个Static helper（一个静态helper方法），被用来run一个SpringApplication（也就是Spring应用）
+	 *
 	 * Static helper that can be used to run a {@link SpringApplication} from the
 	 * specified source using default settings.
 	 * @param primarySource the primary source to load
@@ -1298,6 +1376,11 @@ public class SpringApplication {
 	 * @return the running {@link ApplicationContext}
 	 */
 	public static ConfigurableApplicationContext run(Class<?>[] primarySources, String[] args) {
+
+		// 这里要稍微注意一下，虽然经常写启动代码的时候，用的是静态的run方法。
+		// 但是最终还是会创建一个SpringApplication实例，再调用实例的run方法。
+		// 所以，在执行run方法之前，还会有一段SpringApplication构造器的代码逻辑
+		// 别忘了这个！
 		return new SpringApplication(primarySources).run(args);
 	}
 

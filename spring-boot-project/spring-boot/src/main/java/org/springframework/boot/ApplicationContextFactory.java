@@ -53,6 +53,7 @@ public interface ApplicationContextFactory {
 		try {
 			switch (webApplicationType) {
 			case SERVLET:
+				// ！！！！！！！Spring Boot是在这里创建ApplicationContext的！！！！！！！
 				return new AnnotationConfigServletWebServerApplicationContext();
 			case REACTIVE:
 				return new AnnotationConfigReactiveWebServerApplicationContext();
@@ -61,6 +62,7 @@ public interface ApplicationContextFactory {
 			}
 		}
 		catch (Exception ex) {
+			// 其实Spring boot也只简单粗暴的catch Exception，所以spring boot也没有什么很强的写法
 			throw new IllegalStateException("Unable create a default ApplicationContext instance, "
 					+ "you may need a custom ApplicationContextFactory", ex);
 		}

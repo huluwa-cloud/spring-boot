@@ -58,16 +58,24 @@ public enum WebApplicationType {
 
 	private static final String REACTIVE_APPLICATION_CONTEXT_CLASS = "org.springframework.boot.web.reactive.context.ReactiveWebApplicationContext";
 
+	/**
+	 *
+	 * SpringBoot推断应用的类型的逻辑。
+	 * 说白了，就是判断classpath中有没有特征类。
+	 *
+	 */
 	static WebApplicationType deduceFromClasspath() {
 		if (ClassUtils.isPresent(WEBFLUX_INDICATOR_CLASS, null) && !ClassUtils.isPresent(WEBMVC_INDICATOR_CLASS, null)
 				&& !ClassUtils.isPresent(JERSEY_INDICATOR_CLASS, null)) {
 			return WebApplicationType.REACTIVE;
 		}
+		// 如果不是reactive类型的web应用，也没有javax.servlet.Servlet这个类，那么这个应用就不是Web应用。
 		for (String className : SERVLET_INDICATOR_CLASSES) {
 			if (!ClassUtils.isPresent(className, null)) {
 				return WebApplicationType.NONE;
 			}
 		}
+		// spring boot倾向于默认应用类型为Web Servlet。
 		return WebApplicationType.SERVLET;
 	}
 
