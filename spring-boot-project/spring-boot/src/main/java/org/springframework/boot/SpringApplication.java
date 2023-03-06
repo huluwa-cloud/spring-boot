@@ -347,14 +347,16 @@ public class SpringApplication {
 			context = createApplicationContext();
 			context.setApplicationStartup(this.applicationStartup);
 			prepareContext(bootstrapContext, context, environment, listeners, applicationArguments, printedBanner);
+			// 在这里面执行ApplicationContext的refresh方法（加载Bean Definition和创建bean）
 			refreshContext(context);
+			// 这个afterRefresh啥也没执行
 			afterRefresh(context, applicationArguments);
 			Duration timeTakenToStartup = Duration.ofNanos(System.nanoTime() - startTime);
 			if (this.logStartupInfo) {
 				new StartupInfoLogger(this.mainApplicationClass).logStarted(getApplicationLog(), timeTakenToStartup);
 			}
 			listeners.started(context, timeTakenToStartup);	// started ========================================
-			//
+			// 执行我们定义的各种Runner（这些Runner已经纳入了ApplicationContext成为了Bean）
 			callRunners(context, applicationArguments);
 		}
 		catch (Throwable ex) {
@@ -433,6 +435,8 @@ public class SpringApplication {
 		}
 		// Add boot specific singleton beans
 		ConfigurableListableBeanFactory beanFactory = context.getBeanFactory();
+		// 从ApplicationContext中get出BeanFactory，
+		// 然后用这个BeanFactory去添加spring boot指定(或者特定)的单例bean(dd boot specific singleton beans)
 		beanFactory.registerSingleton("springApplicationArguments", applicationArguments);
 		if (printedBanner != null) {
 			beanFactory.registerSingleton("springBootBanner", printedBanner);
@@ -451,9 +455,13 @@ public class SpringApplication {
 		// Load the sources
 		// 这里的获取Source的含义是什么呢？
 		// 就是先把要让spring先行认识的代码（源码）标识提取出来。
-		// 它可以仅仅是一个类就行了。因为这个类可以，在配置指定，或者配置scan出更过的要让spring去识别的Source
+		// 它可以仅仅是一个类就行了。因为这个类可以，再配置指定，或者配置scan出更多的要让spring去识别的Source
+		// 对于平常使用SpringBoot来讲，就是main方法所在类就是要提取的Source的。
 		Set<Object> sources = getAllSources();
 		Assert.notEmpty(sources, "Sources must not be empty");
+		// 加载Bean Definition！！！！但只是加载启动类的Bean Definition
+		// 真正整体加载用于自定义的Bean的Bean Definition还是在
+		// AbstractApplicationContext的refresh方法的invokeBeanFactoryPostProcessors方法中
 		load(context, sources.toArray(new Object[0]));
 		listeners.contextLoaded(context); // context-loaded==============================
 	}
@@ -725,7 +733,7 @@ public class SpringApplication {
 
 	/**
 	 * ！！！！！！！！！！来了，来了
-	 * 把所有的Bean加载到ApplicationContext，就是在这里了
+	 * 把启动类的Bean Definition加载到ApplicationContext，就是在这里了！！！
 	 *
 	 * Load beans into the application context.
 	 * @param context the context to load beans into
@@ -735,6 +743,16 @@ public class SpringApplication {
 		if (logger.isDebugEnabled()) {
 			logger.debug("Loading source " + StringUtils.arrayToCommaDelimitedString(sources));
 		}
+
+		/*
+		 * 在这里，Spring Boot创建了一个BeanDefinitionLoader。
+		 * Bean Definition Loader是Spring Boot定义的一个Bean Definition加载器。
+		 * 但它的底层，还是用的
+		 * org.springframework.beans.factory.support.BeanDefinitionRegistry#registerBeanDefinition方法
+		 * 去加载Bean Definition。
+		 *
+		 * 而用的BeanDefinitionRegistry的具体实现，其实都是本身的ApplicationContext
+		 */
 		BeanDefinitionLoader loader = createBeanDefinitionLoader(getBeanDefinitionRegistry(context), sources);
 		if (this.beanNameGenerator != null) {
 			loader.setBeanNameGenerator(this.beanNameGenerator);

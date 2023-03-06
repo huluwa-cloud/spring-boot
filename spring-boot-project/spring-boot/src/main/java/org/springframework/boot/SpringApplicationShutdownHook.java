@@ -36,6 +36,8 @@ import org.springframework.context.event.ContextClosedEvent;
 import org.springframework.util.Assert;
 
 /**
+ * 用于Spring Boot应用的优雅降级？？？
+ *
  * A {@link Runnable} to be used as a {@link Runtime#addShutdownHook(Thread) shutdown
  * hook} to perform graceful shutdown of Spring Boot applications. This hook tracks
  * registered application contexts as well as any actions registered via

@@ -44,6 +44,9 @@ import org.springframework.format.support.DefaultFormattingConversionService;
 import org.springframework.util.Assert;
 
 /**
+ *
+ * 我觉得，就是一个映射关系
+ *
  * A container object which Binds objects from one or more
  * {@link ConfigurationPropertySource ConfigurationPropertySources}.
  *

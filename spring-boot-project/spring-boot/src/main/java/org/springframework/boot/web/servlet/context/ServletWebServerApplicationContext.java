@@ -139,6 +139,13 @@ public class ServletWebServerApplicationContext extends GenericWebApplicationCon
 		registerWebApplicationScopes();
 	}
 
+	/**
+	 *
+	 * spring boot的ServletWebServerApplicationContext是重写了refresh方法的。
+	 * 但它调用了父类的refresh方法，也就是保持了原有的功能。
+	 * 然后，确保了refresh失败的时候，一定会关闭WebServer。（这就是它重写refresh方法的主要目的）
+	 *
+	 */
 	@Override
 	public final void refresh() throws BeansException, IllegalStateException {
 		try {

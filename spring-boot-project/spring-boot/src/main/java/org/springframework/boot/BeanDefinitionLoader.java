@@ -59,6 +59,7 @@ import org.springframework.util.StringUtils;
  * @author Sebastien Deleuze
  * @see #setBeanNameGenerator(BeanNameGenerator)
  */
+// 注意这个类是包访问权限，只能同包下访问
 class BeanDefinitionLoader {
 
 	// Static final field to facilitate code removal by Graal
@@ -142,7 +143,7 @@ class BeanDefinitionLoader {
 
 	private void load(Object source) {
 		Assert.notNull(source, "Source must not be null");
-		if (source instanceof Class<?>) {
+		if (source instanceof Class<?>) {	// 平常用的，一般都是这个！
 			load((Class<?>) source);
 			return;
 		}

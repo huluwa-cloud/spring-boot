@@ -31,6 +31,15 @@ import org.springframework.core.metrics.StartupStep;
 import org.springframework.util.ReflectionUtils;
 
 /**
+ *
+ * SpringApplicationRunListeners这个类的实例是
+ * spring boot自己实现的SpringApplication run方法执行的监听器(SpringApplicationRunListener)的一个集合。
+ *
+ *
+ * 这个类的目的就是把所有的SpringApplicationRunListener监听器的实例的同一个操作，都聚合起来，只要触发run过程中的一个步骤。
+ * 所有监听器的同一个操作，都会被遍历触发。
+ *
+ *
  * A collection of {@link SpringApplicationRunListener}.
  *
  * @author Phillip Webb
@@ -53,6 +62,9 @@ class SpringApplicationRunListeners {
 	}
 
 	void starting(ConfigurableBootstrapContext bootstrapContext, Class<?> mainApplicationClass) {
+
+		// 这里的(listener) -> listener.starting(bootstrapContext) Lambda表达式就是JDK Consumer接口的实现。
+		// 然后listener这个变量就会自动推断deduce为Consumer的泛型SpringApplicationRunListener类型
 		doWithListeners("spring.boot.application.starting", (listener) -> listener.starting(bootstrapContext),
 				(step) -> {
 					if (mainApplicationClass != null) {
@@ -114,14 +126,24 @@ class SpringApplicationRunListeners {
 		doWithListeners(stepName, listenerAction, null);
 	}
 
+	/**
+	 *
+	 * Consumer接口，是JDK定义的Functional接口，只有一个void accept(T t)方法。
+	 * 它的实现类常用lambda表达式表示。
+	 *
+	 */
 	private void doWithListeners(String stepName, Consumer<SpringApplicationRunListener> listenerAction,
 			Consumer<StartupStep> stepAction) {
-		StartupStep step = this.applicationStartup.start(stepName);
+		StartupStep step = this.applicationStartup.start(stepName);	// start================
 		this.listeners.forEach(listenerAction);
+//		上面一行代码等同于如下
+//		this.listeners.forEach(listener -> {
+//			listenerAction.accept(listener);
+//		});
 		if (stepAction != null) {
 			stepAction.accept(step);
 		}
-		step.end();
+		step.end();	// end=====================
 	}
 
 }
